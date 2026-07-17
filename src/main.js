@@ -1,12 +1,7 @@
-// Publication deck viewer + contact form
-// Replaces the original inline mailto with a Formspree endpoint.
-// Set VITE_FORMSPREE_ID in .env (or hardcode FORMSPREE_ENDPOINT below).
-
-const TOTAL_PAGES = 93;
+const TOTAL_PAGES = 10;
 const pad = (n) => String(n).padStart(2, '0');
-const pageSrc = (n) => `/publication/portrait-page-${pad(n)}.webp`;
+const pageSrc = (n) => `/publication/publication-${pad(n)}.jpg`;
 
-// Formspree endpoint. Set VITE_FORMSPREE_ID env var, or paste your own ID here.
 const FORMSPREE_ID = import.meta.env.VITE_FORMSPREE_ID || 'YOUR_FORMSPREE_ID';
 const FORMSPREE_ENDPOINT = `https://formspree.io/f/${FORMSPREE_ID}`;
 
@@ -16,17 +11,15 @@ const nextBtn = document.getElementById('nextBtn');
 const counter = document.getElementById('deckCounter');
 let current = 0;
 
-// Build all 93 slides up front so the counter and bounds are correct.
-// Images use loading="lazy" except the first 3 (eager) to prevent layout shifts.
 const slides = [];
 for (let i = 1; i <= TOTAL_PAGES; i++) {
   const slide = document.createElement('div');
   slide.className = 'slide' + (i === 1 ? ' active' : '');
   const img = document.createElement('img');
-  img.loading = i <= 3 ? 'eager' : 'lazy';
+  img.loading = i === 1 ? 'eager' : 'lazy';
   img.decoding = i === 1 ? 'sync' : 'async';
-  img.width = 640;
-  img.height = 1138;
+  img.width = 1080;
+  img.height = 1350;
   img.src = pageSrc(i);
   img.alt = `Publication page ${i}`;
   slide.appendChild(img);
@@ -37,9 +30,7 @@ for (let i = 1; i <= TOTAL_PAGES; i++) {
 function preload(n) {
   if (n < 1 || n > TOTAL_PAGES) return;
   const img = slides[n - 1]?.querySelector('img');
-  if (img && !img.complete) {
-    img.loading = 'eager';
-  }
+  if (img && img.loading !== 'eager') img.loading = 'eager';
 }
 
 function update() {
@@ -47,17 +38,11 @@ function update() {
   counter.textContent = `${current + 1} / ${TOTAL_PAGES}`;
   prevBtn.disabled = current === 0;
   nextBtn.disabled = current === TOTAL_PAGES - 1;
-  // Preload the pages immediately before and after the current page
-  preload(current);
-  preload(current + 2);
+  preload(current + 1);
 }
 
-function next() {
-  if (current < TOTAL_PAGES - 1) { current++; update(); }
-}
-function prev() {
-  if (current > 0) { current--; update(); }
-}
+function next() { if (current < TOTAL_PAGES - 1) { current++; update(); } }
+function prev() { if (current > 0) { current--; update(); } }
 
 nextBtn.addEventListener('click', next);
 prevBtn.addEventListener('click', prev);
@@ -79,8 +64,6 @@ function setStatus(msg, type) {
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
-
-  // Honeypot spam protection — hidden field must remain empty
   const honeypot = form.querySelector('input[name="_gotcha"]');
   if (honeypot && honeypot.value) return;
 
@@ -90,16 +73,14 @@ form.addEventListener('submit', async (e) => {
   }
 
   submitBtn.disabled = true;
-  setStatus('Sending…', 'sending');
+  setStatus('Sending\u2026', 'sending');
 
   try {
-    const data = new FormData(form);
     const res = await fetch(FORMSPREE_ENDPOINT, {
       method: 'POST',
-      body: data,
+      body: new FormData(form),
       headers: { Accept: 'application/json' }
     });
-
     if (res.ok) {
       setStatus('Thank you. Your invitation has been sent.', 'success');
       form.reset();
