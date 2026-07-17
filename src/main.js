@@ -1,55 +1,117 @@
-const TOTAL_PAGES = 10;
+const TOTAL_SLIDES = 10;
 const pad = (n) => String(n).padStart(2, '0');
-const pageSrc = (n) => `/publication/publication-${pad(n)}.jpg`;
+const slideSrc = (n) => `/publication/slide-${pad(n)}.png`;
 
 const FORMSPREE_ID = import.meta.env.VITE_FORMSPREE_ID || 'YOUR_FORMSPREE_ID';
 const FORMSPREE_ENDPOINT = `https://formspree.io/f/${FORMSPREE_ID}`;
 
-const stage = document.getElementById('deckStage');
-const prevBtn = document.getElementById('prevBtn');
-const nextBtn = document.getElementById('nextBtn');
-const counter = document.getElementById('deckCounter');
+const track = document.getElementById('carouselTrack');
+const counter = document.getElementById('carouselCounter');
+const progressEl = document.getElementById('carouselProgress');
+const tapLeft = document.getElementById('tapLeft');
+const tapRight = document.getElementById('tapRight');
+
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const TRANSITION_MS = prefersReducedMotion ? 0 : 300;
+
 let current = 0;
 
+// Build progress segments
+for (let i = 0; i < TOTAL_SLIDES; i++) {
+  const seg = document.createElement('div');
+  seg.className = 'progress-seg' + (i === 0 ? ' active' : '');
+  progressEl.appendChild(seg);
+}
+
+// Build slides
 const slides = [];
-for (let i = 1; i <= TOTAL_PAGES; i++) {
+for (let i = 1; i <= TOTAL_SLIDES; i++) {
   const slide = document.createElement('div');
-  slide.className = 'slide' + (i === 1 ? ' active' : '');
+  slide.className = 'carousel-slide';
   const img = document.createElement('img');
-  img.loading = i === 1 ? 'eager' : 'lazy';
-  img.decoding = i === 1 ? 'sync' : 'async';
+  img.loading = i <= 2 ? 'eager' : 'lazy';
+  img.decoding = i <= 2 ? 'sync' : 'async';
   img.width = 1080;
   img.height = 1350;
-  img.src = pageSrc(i);
-  img.alt = `Publication page ${i}`;
+  img.src = slideSrc(i);
+  img.alt = `Publication slide ${i}`;
   slide.appendChild(img);
-  stage.appendChild(slide);
+  track.appendChild(slide);
   slides.push(slide);
 }
 
 function preload(n) {
-  if (n < 1 || n > TOTAL_PAGES) return;
+  if (n < 1 || n > TOTAL_SLIDES) return;
   const img = slides[n - 1]?.querySelector('img');
-  if (img && img.loading !== 'eager') img.loading = 'eager';
+  if (img && img.loading !== 'eager') {
+    img.loading = 'eager';
+  }
 }
 
 function update() {
-  slides.forEach((s, i) => s.classList.toggle('active', i === current));
-  counter.textContent = `${current + 1} / ${TOTAL_PAGES}`;
-  prevBtn.disabled = current === 0;
-  nextBtn.disabled = current === TOTAL_PAGES - 1;
+  track.style.transform = `translateX(-${current * 100}%)`;
+  counter.textContent = `${pad(current + 1)} / ${pad(TOTAL_SLIDES)}`;
+  const segs = progressEl.children;
+  for (let i = 0; i < segs.length; i++) {
+    segs[i].classList.toggle('active', i === current);
+  }
   preload(current + 1);
+  preload(current - 1);
 }
 
-function next() { if (current < TOTAL_PAGES - 1) { current++; update(); } }
+function next() { if (current < TOTAL_SLIDES - 1) { current++; update(); } }
 function prev() { if (current > 0) { current--; update(); } }
 
-nextBtn.addEventListener('click', next);
-prevBtn.addEventListener('click', prev);
+// Tap navigation — right 70% advances, left 30% goes back
+tapRight.addEventListener('click', next);
+tapLeft.addEventListener('click', prev);
+
+// Swipe navigation
+let touchStartX = 0;
+let touchStartY = 0;
+let touchDeltaX = 0;
+let isSwiping = false;
+
+track.addEventListener('touchstart', (e) => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+  touchDeltaX = 0;
+  isSwiping = false;
+  track.style.transition = 'none';
+}, { passive: true });
+
+track.addEventListener('touchmove', (e) => {
+  const dx = e.touches[0].clientX - touchStartX;
+  const dy = e.touches[0].clientY - touchStartY;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    isSwiping = true;
+    touchDeltaX = dx;
+    const offset = -current * 100 + (dx / track.offsetWidth) * 100;
+    track.style.transform = `translateX(${offset}%)`;
+  }
+}, { passive: true });
+
+track.addEventListener('touchend', () => {
+  track.style.transition = '';
+  if (isSwiping) {
+    const threshold = track.offsetWidth * 0.2;
+    if (touchDeltaX < -threshold) {
+      next();
+    } else if (touchDeltaX > threshold) {
+      prev();
+    } else {
+      update();
+    }
+  }
+  isSwiping = false;
+});
+
+// Keyboard navigation
 document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') next();
   if (e.key === 'ArrowLeft') prev();
 });
+
 update();
 
 // ---- Contact form (Formspree) ----
