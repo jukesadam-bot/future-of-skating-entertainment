@@ -140,21 +140,34 @@ form.addEventListener('submit', async (e) => {
   submitBtn.textContent = 'Sending\u2026';
   setStatus('Sending\u2026', 'sending');
 
+  const email = form.querySelector('input[name="email"]').value.trim();
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (!emailOk) {
+    setStatus('Please enter a valid email address.', 'error');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit Invitation';
+    return;
+  }
+
   try {
+    const formData = new FormData(form);
+    formData.append('_replyto', email);
     const res = await fetch(FORMSPREE_ENDPOINT, {
       method: 'POST',
-      body: new FormData(form),
+      body: formData,
       headers: { Accept: 'application/json' }
     });
     if (res.ok) {
-      setStatus('Thank you. Your invitation has been sent.', 'success');
+      setStatus('Thank you. Your message has been sent.', 'success');
       form.reset();
     } else {
       const err = await res.json().catch(() => ({}));
-      setStatus(err.errors?.[0]?.message || 'Something went wrong. Please try again.', 'error');
+      setStatus(err.errors?.[0]?.message || 'Something went wrong. Please try again or email adam@oneblades.one.', 'error',
+        err.errors?.[0]?.message || 'Something went wrong. Please try again or email <a href="mailto:adam@oneblades.one" style="color:inherit;text-decoration:underline;">adam@oneblades.one</a>.');
     }
   } catch {
-    setStatus('Network error. Please check your connection and try again.', 'error');
+    setStatus('Something went wrong. Please try again or email adam@oneblades.one.', 'error',
+      'Something went wrong. Please try again or email <a href="mailto:adam@oneblades.one" style="color:inherit;text-decoration:underline;">adam@oneblades.one</a>.');
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = 'Submit Invitation';
