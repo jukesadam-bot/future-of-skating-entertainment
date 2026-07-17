@@ -2,7 +2,7 @@ const TOTAL_SLIDES = 10;
 const pad = (n) => String(n).padStart(2, '0');
 const slideSrc = (n) => `/publication/slide-${pad(n)}.png`;
 
-const FORMSPREE_ID = import.meta.env.VITE_FORMSPREE_ID || 'YOUR_FORMSPREE_ID';
+const FORMSPREE_ID = import.meta.env.VITE_FORMSPREE_ID || '';
 const FORMSPREE_ENDPOINT = `https://formspree.io/f/${FORMSPREE_ID}`;
 
 const track = document.getElementById('carouselTrack');
@@ -119,8 +119,8 @@ const form = document.getElementById('contactForm');
 const formStatus = document.getElementById('formStatus');
 const submitBtn = document.getElementById('submitBtn');
 
-function setStatus(msg, type) {
-  formStatus.textContent = msg;
+function setStatus(msg, type, html) {
+  formStatus.innerHTML = html || msg;
   formStatus.className = 'form-status' + (type ? ' ' + type : '');
 }
 
@@ -129,12 +129,15 @@ form.addEventListener('submit', async (e) => {
   const honeypot = form.querySelector('input[name="_gotcha"]');
   if (honeypot && honeypot.value) return;
 
-  if (FORMSPREE_ID === 'YOUR_FORMSPREE_ID') {
-    setStatus('Form service not configured. Set VITE_FORMSPREE_ID in .env', 'error');
+  if (!FORMSPREE_ID) {
+    setStatus('The form is temporarily unavailable. Please email adam@oneblades.one.', 'error',
+      'The form is temporarily unavailable. Please email <a href="mailto:adam@oneblades.one" style="color:inherit;text-decoration:underline;">adam@oneblades.one</a>.');
+    submitBtn.disabled = false;
     return;
   }
 
   submitBtn.disabled = true;
+  submitBtn.textContent = 'Sending\u2026';
   setStatus('Sending\u2026', 'sending');
 
   try {
@@ -154,5 +157,6 @@ form.addEventListener('submit', async (e) => {
     setStatus('Network error. Please check your connection and try again.', 'error');
   } finally {
     submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit Invitation';
   }
 });
